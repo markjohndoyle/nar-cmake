@@ -11,8 +11,8 @@ def main():
     parser = pom.PomParser()
     parser.parsePom(sys.argv[1], sys.argv[2])
 
-    cmakebuilder = cmake.CmakeBuilder()
-    cmakebuilder.build(parser)
+    cmakebuilder = cmake.CmakeBuilder(parser)
+    cmakebuilder.build()
 
 
 if __name__ == '__main__':

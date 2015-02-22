@@ -60,18 +60,26 @@ class PomParser:
         self.artifactId = projectElem.find("mvn:artifactId", self.ns).text
         self.version = projectVersion
 
-    # Checks if there is a nar plugin definition in the pom
     def gatherNarPluginConfig(self, pluginsNode):
         for plugin in pluginsNode:
             artifactId = plugin.find("mvn:artifactId", self.ns)
             if artifactId.text == self.NAR_PLUG:
                 print("We have a nar plugin")
-                sysLibsNode = plugin.findall("mvn:configuration/mvn:linker/mvn:sysLibs/mvn:sysLib/mvn:name", self.ns)
-                sysLibs = self.buildOptions["sysLibs"]
-                for sysLib in sysLibsNode:
-                    sysLibs.add(sysLib.text)
-                self.buildOptions["sysLibs"] = sysLibs
-                return {}
+                self.gatherSysLibs(plugin)
+                self.gatherLibraries(plugin)
+
+    def gatherSysLibs(self, plugin):
+        sysLibsNode = plugin.findall("mvn:configuration/mvn:linker/mvn:sysLibs/mvn:sysLib/mvn:name", self.ns)
+        sysLibs = self.buildOptions["sysLibs"]
+        for sysLib in sysLibsNode:
+            sysLibs.add(sysLib.text)
+        self.buildOptions["sysLibs"] = sysLibs
+
+    def gatherLibraries(self, plugin):
+        libsElem= plugin.findall("mvn:configuration/mvn:libraries/mvn:library", self.ns)
+        for lib in libsElem:
+            outLib = lib.find("mvn:type", self.ns)
+            self.buildOptions["output"] = outLib.text
 
     def getParent(self, projectNode):
         parent = projectNode.find("mvn:parent", self.ns)
@@ -126,6 +134,8 @@ class PomParser:
             if prop.tag.startswith(mvnNamespace):
                 propKey = "${" + prop.tag.replace(mvnNamespace, "", 1) + "}"
                 self.properties[propKey] = prop.text;
+
+
 
 
 
