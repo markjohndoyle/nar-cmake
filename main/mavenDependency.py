@@ -11,7 +11,7 @@ class MavenDependency:
         self.version = version
 
 
-    def getAol(self, linker):
+    def getAol(self, linker) -> str:
         os = platform.system()
         arch = platform.machine().lower()
         return self.artifactId + "-" + self.version + "-" + arch + "-" + os + "-" + linker + "-shared"
