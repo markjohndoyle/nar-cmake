@@ -15,15 +15,20 @@ class CmakeBuilder:
         self.srcPath = pomParser.buildOptions["srcPath"]
         self.incPath = pomParser.buildOptions["incPath"]
 
+        # TODO get this from nar config
+        self.srcExts = {"c", "cpp"}
+
 
     def build(self):
-        self.makeFile.write("make_minimum_required (VERSION 2.6)\n")
+        self.makeFile.write("make_minimum_required (VERSION 2.6)\n\n")
         self.makeFile.write("project (" + self.groupId + "." + self.artifactId + ")\n")
         self.makeFile.write("\n")
 
-        self.addType()
         self.addCxxFlags()
-        self.addSourceDir()
+        self.addIncludeDir()
+        self.addAllSources()
+        self.addType()
+        # self.addSourceDir()
 
 
     def addType(self):
@@ -44,6 +49,21 @@ class CmakeBuilder:
     def addSourceDir(self):
         for srcDir in os.listdir(self.srcPath):
             self.makeFile.write("add_subdirectory(" + self.srcPath + "/" + srcDir + ")\n")
+
+    def addIncludeDir(self):
+        for incDir in os.listdir(self.incPath):
+            self.makeFile.write("include_directories(" + incDir + ")\n")
+        self.makeFile.write("\n")
+
+    def addAllSources(self):
+        sources = []
+        for srcDir in os.listdir(self.srcPath):
+            for file in os.listdir(self.srcPath  + "/" + srcDir):
+                if file.endswith(tuple(self.srcExts)):
+                    sources.append(file)
+
+        self.makeFile.write("set(SOURCES " + " ".join(sources) + ")\n\n")
+
 
 
 
