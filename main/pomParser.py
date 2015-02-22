@@ -16,8 +16,6 @@ class PomParser:
     dependencyVersions = {}
     dependencies = []
     buildOptions = {
-        "incPath": "src/main/include",
-        "srcPath": "src/main/c++",
         "compiler": "g++",
         "linker": "g++",
         "debug": True,
@@ -29,9 +27,16 @@ class PomParser:
 
 
     # Parses the pom pulling out nar specifics.
-    def parsePom(self, filepath, projectVersion):
+    def parsePom(self, filepath, projectRoot):
         print("Parsing pom " + filepath)
-        self.projectVersion = projectVersion
+        self.projectRoot = projectRoot
+        modulePath = os.path.dirname(filepath)
+        sourcePath = modulePath + "/src/main/c++"
+        if os.path.isdir(sourcePath):
+            self.buildOptions["srcPath"]  = sourcePath
+        includePath = modulePath + "/src/main/include"
+        if os.path.isdir(includePath):
+            self.buildOptions["incPath"]  = includePath
 
         tree = ETree.parse(filepath)
         projectElem = tree.getroot()
@@ -39,6 +44,11 @@ class PomParser:
         parent = self.getParent(projectElem)
         if parent:
             parentFile = self.parseParentPom(parent, filepath)
+
+        find = projectElem.find("mvn:version", self.ns)
+        if find is not None:
+            self.version = find.text
+            print("Set project version to " + self.version)
 
         self.gatherProperties(projectElem)
 
@@ -58,7 +68,6 @@ class PomParser:
 
         self.groupId = projectElem.find("mvn:groupId", self.ns).text
         self.artifactId = projectElem.find("mvn:artifactId", self.ns).text
-        self.version = projectVersion
 
     def gatherNarPluginConfig(self, pluginsNode):
         for plugin in pluginsNode:
@@ -76,7 +85,7 @@ class PomParser:
         self.buildOptions["sysLibs"] = sysLibs
 
     def gatherLibraries(self, plugin):
-        libsElem= plugin.findall("mvn:configuration/mvn:libraries/mvn:library", self.ns)
+        libsElem = plugin.findall("mvn:configuration/mvn:libraries/mvn:library", self.ns)
         for lib in libsElem:
             outLib = lib.find("mvn:type", self.ns)
             self.buildOptions["output"] = outLib.text
@@ -90,7 +99,7 @@ class PomParser:
         if not relativePath:
             relativePath = self.parentPathDefault
         parentDir = os.path.dirname(os.path.dirname(filePath))
-        self.parsePom(parentDir + "/pom.xml", self.projectVersion)
+        self.parsePom(parentDir + "/pom.xml", self.projectRoot)
 
     def gatherDependencies(self, dependencies):
         for dependency in dependencies:
@@ -123,7 +132,7 @@ class PomParser:
                     version = management.find("mvn:version", self.ns).text
                     if version.startswith("${"):
                         if version == "${project.version}":
-                            version = self.projectVersion
+                            version = self.version
                         else:
                             version = self.properties[version]
                     self.dependencyVersions[groupId + "." + artifactId] = version
