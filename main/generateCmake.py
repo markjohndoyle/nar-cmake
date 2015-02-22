@@ -10,8 +10,6 @@ def main():
     parser = pomParser.PomParser()
     parser.parsePom(sys.argv[1])
 
-    print(parser.narModule)
-
 
 if __name__ == '__main__':
     main()
