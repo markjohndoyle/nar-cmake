@@ -1,7 +1,7 @@
-# import xml.etree.cElementTree as ETree
 import xml.etree.cElementTree as ETree
 from builtins import print
 import os
+import pprint
 
 from main import mavenDependency as mvnDep
 
@@ -16,7 +16,7 @@ class PomParser:
     ns = {"mvn": "http://maven.apache.org/POM/4.0.0"}
     parentPathDefault = "../"
 
-    narModule = False
+    dependencyVersions = {}
     dependencies = []
     buildOptions = {"compiler": "g++",
                     "linker": "g++",
@@ -25,6 +25,7 @@ class PomParser:
                     "sysLibs": set(),
                     "output": "executable"}
 
+    properties = {}
 
 
     # Parses the pom pulling out nar specifics.
@@ -44,10 +45,13 @@ class PomParser:
         plugins = project.findall("mvn:build/mvn:plugins/mvn:plugin", self.ns)
         self.gatherNarPluginConfig(plugins)
 
+        dependencyManagements = project.findall("mvn:dependencyManagement/mvn:dependencies/mvn:dependency", self.ns)
+        self.gatherAllNarDepManagement(dependencyManagements)
+
         dependencies = project.findall("mvn:dependencies/mvn:dependency", self.ns)
         self.gatherDependencies(dependencies)
 
-        print(self.buildOptions)
+        pprint.pprint(self.buildOptions, indent=2)
         for dep in self.dependencies:
             print(dep.getAol("gpp"))
 
@@ -78,15 +82,34 @@ class PomParser:
 
     def gatherDependencies(self, dependencies):
         for dependency in dependencies:
-            groupId = dependency.find("mvn:groupId", self.ns).text
-            artifactId = dependency.find("mvn:artifactId", self.ns).text
             typeDef = dependency.find("mvn:type", self.ns)
-            print(groupId + "." + artifactId)
             if typeDef is not None:
                 print("Found nar dep")
+                groupId = dependency.find("mvn:groupId", self.ns).text
+                artifactId = dependency.find("mvn:artifactId", self.ns).text
                 type = typeDef.text
-                dep = mvnDep.MavenDependency(groupId, artifactId, "0.0.1-PLACEHOLDER", type)
+                versionDef = dependency.find("mvn:version", self.ns)
+                if versionDef is not None:
+                    version = versionDef.text
+                else:
+                    managedVersion = self.dependencyVersions[groupId + "." + artifactId]
+                    if managedVersion is not None:
+                        version = managedVersion
+                dep = mvnDep.MavenDependency(groupId, artifactId, version, type)
                 self.dependencies.append(dep)
+
+    def gatherAllNarDepManagement(self, dependencyManagements):
+        for management in dependencyManagements:
+            typeDef = management.find("mvn:type", self.ns)
+            if typeDef is not None:
+                type = typeDef.text
+                if type == "nar":
+                    groupId = management.find("mvn:groupId", self.ns).text
+                    artifactId = management.find("mvn:artifactId", self.ns).text
+                    version = management.find("mvn:version", self.ns).text
+                    self.dependencyVersions[groupId + "." + artifactId] = version
+
+
 
 
 
