@@ -56,6 +56,10 @@ class PomParser:
         for dep in self.dependencies:
             print(dep.getAol("gpp"))
 
+        self.groupId = projectElem.find("mvn:groupId", self.ns).text
+        self.artifactId = projectElem.find("mvn:artifactId", self.ns).text
+        self.version = projectVersion
+
     # Checks if there is a nar plugin definition in the pom
     def gatherNarPluginConfig(self, pluginsNode):
         for plugin in pluginsNode:
