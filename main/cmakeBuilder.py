@@ -14,6 +14,9 @@ class CmakeBuilder:
         self.cxxFlags = pomParser.buildOptions["compilerFlags"]
         self.srcPath = pomParser.buildOptions["srcPath"]
         self.incPath = pomParser.buildOptions["incPath"]
+        self.libPath = pomParser.projectRoot + "/target/nar"
+        self.testLibPath = pomParser.projectRoot + "/target/test-nar"
+        self.target = pomParser.projectRoot + "/target/cmake"
 
         # TODO get this from nar config
         self.srcExts = {"c", "cpp"}
@@ -28,6 +31,8 @@ class CmakeBuilder:
         self.addIncludeDir()
         self.addAllSources()
         self.addType()
+        self.linkDirectories()
+        self.setOutputDir()
         # self.addSourceDir()
 
 
@@ -63,6 +68,12 @@ class CmakeBuilder:
                     sources.append(file)
 
         self.makeFile.write("set(SOURCES " + " ".join(sources) + ")\n\n")
+
+    def linkDirectories(self):
+        target = self.libPath
+
+    def setOutputDir(self):
+        self.makeFile.write("set(CMAKE_RUNTIME_OUTPUT_DIRECTORY " + self.target + ")\n")
 
 
 
