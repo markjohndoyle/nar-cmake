@@ -1,0 +1,83 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.cgi.idpf</groupId>
+        <artifactId>pi-core</artifactId>
+        <version>0.2.2-SNAPSHOT</version>
+    </parent>
+
+    <groupId>com.cgi.idpf.pi-core</groupId>
+    <artifactId>ape</artifactId>
+    <packaging>nar</packaging>
+
+    <name>IDPF :: PI Core :: Algorithm</name>
+
+    <build>
+        <sourceDirectory>src/main/c++</sourceDirectory>
+        <plugins>
+            <plugin>
+                <groupId>com.github.maven-nar</groupId>
+                <artifactId>nar-maven-plugin</artifactId>
+                <extensions>true</extensions>
+                <configuration>
+                    <linker>
+                        <sysLibs>
+                            <sysLib>
+                                <name>log4cxx</name>
+                            </sysLib>
+                            <sysLib>
+                                <name>pthread</name>
+                            </sysLib>
+                        </sysLibs>
+                    </linker>
+                    <tests>
+                        <test>
+                            <name>ApeUnitTests</name>
+                            <args>
+                                <arg>--gtest_output=xml:${gtest.outdir}</arg>
+                            </args>
+                        </test>
+                    </tests>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.cgi.idpf.pi-core.das</groupId>
+            <artifactId>cdm</artifactId>
+            <type>nar</type>
+        </dependency>
+
+        <dependency>
+            <groupId>com.google</groupId>
+            <artifactId>gmock</artifactId>
+            <type>nar</type>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.logging</groupId>
+            <artifactId>log4cxx</artifactId>
+            <version>0.10.0</version>
+            <type>nar</type>
+        </dependency>
+    </dependencies>
+
+    <profiles>
+        <profile>
+            <id>metrics</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-antrun-plugin</artifactId>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+
+</project>
