@@ -1,11 +1,12 @@
-from main import pomParser
-
 __author__ = 'Mark'
 
+from os.path import expanduser
 import os
+
 
 class CmakeBuilder:
     def __init__(self, pomParser):
+        self.m2dir = expanduser("~") + "/.m2/repository"
         self.makeFile = open("CMakeLists.txt", "w")
         self.groupId = pomParser.groupId
         self.artifactId = pomParser.artifactId
@@ -16,7 +17,7 @@ class CmakeBuilder:
         self.incPath = pomParser.buildOptions["incPath"]
         self.libPath = pomParser.projectRoot + "/target/nar"
         self.testLibPath = pomParser.projectRoot + "/target/test-nar"
-        self.target = pomParser.projectRoot + "/target/cmake"
+        self.target = "./target/cmake"
 
         # TODO get this from nar config
         self.srcExts = {"c", "cpp"}
@@ -63,7 +64,7 @@ class CmakeBuilder:
     def addAllSources(self):
         sources = []
         for srcDir in os.listdir(self.srcPath):
-            for file in os.listdir(self.srcPath  + "/" + srcDir):
+            for file in os.listdir(self.srcPath + "/" + srcDir):
                 if file.endswith(tuple(self.srcExts)):
                     sources.append(file)
 

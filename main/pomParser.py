@@ -44,6 +44,9 @@ class PomParser:
         parent = self.getParent(projectElem)
         if parent:
             parentFile = self.parseParentPom(parent, filepath)
+        else:
+            self.rootPom = filepath
+            print("Root pom: " + self.rootPom)
 
         find = projectElem.find("mvn:version", self.ns)
         if find is not None:
