@@ -1,13 +1,18 @@
-__author__ = 'Mark'
-
+import logging
 from os.path import expanduser
 import os
 
+__author__ = 'Mark'
+
 
 class CmakeBuilder:
-    def __init__(self, pomParser):
+    # this is the directory where the currently processed CMakeLists.txt is located in
+    CMAKE_CURRENT_SOURCE_DIR = "${CMAKE_CURRENT_SOURCE_DIR }"
+
+    def __init__(self, pomParser, projectPath):
+        self.projectPath = projectPath
         self.m2dir = expanduser("~") + "/.m2/repository"
-        self.makeFile = open("CMakeLists.txt", "w")
+        self.makeFile = open(self.projectPath + "/CMakeLists.txt", "w")
         self.groupId = pomParser.groupId
         self.artifactId = pomParser.artifactId
         self.version = pomParser.version
@@ -15,8 +20,8 @@ class CmakeBuilder:
         self.cxxFlags = pomParser.buildOptions["compilerFlags"]
         self.srcPath = pomParser.buildOptions["srcPath"]
         self.incPath = pomParser.buildOptions["incPath"]
-        self.libPath = pomParser.projectRoot + "/target/nar"
-        self.testLibPath = pomParser.projectRoot + "/target/test-nar"
+        self.libPath = self.projectPath + "/target/nar"
+        self.testLibPath = self.projectPath + "/target/test-nar"
         self.target = "./target/cmake"
 
         # TODO get this from nar config
@@ -24,6 +29,9 @@ class CmakeBuilder:
 
 
     def build(self):
+        log = logging.getLogger("__NAME__")
+        log.info("Generating " + self.makeFile.name)
+
         self.makeFile.write("make_minimum_required (VERSION 2.6)\n\n")
         self.makeFile.write("project (" + self.groupId + "." + self.artifactId + ")\n")
         self.makeFile.write("\n")
@@ -54,11 +62,11 @@ class CmakeBuilder:
 
     def addSourceDir(self):
         for srcDir in os.listdir(self.srcPath):
-            self.makeFile.write("add_subdirectory(" + self.srcPath + "/" + srcDir + ")\n")
+            self.makeFile.write("add_subdirectory(" + self.projectPath + "/" + srcDir + ")\n")
 
     def addIncludeDir(self):
         for incDir in os.listdir(self.incPath):
-            self.makeFile.write("include_directories(" + incDir + ")\n")
+            self.makeFile.write("include_directories(" + self.projectPath + "/" + incDir + ")\n")
         self.makeFile.write("\n")
 
     def addAllSources(self):

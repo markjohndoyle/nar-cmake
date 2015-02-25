@@ -1,6 +1,6 @@
 import xml.etree.cElementTree as ETree
-from builtins import print
 import os
+import logging
 
 from main import mavenDependency as mvnDep
 
@@ -28,15 +28,23 @@ class PomParser:
 
     # Parses the pom pulling out nar specifics.
     def parsePom(self, filepath, projectRoot):
-        print("Parsing pom " + filepath)
+        self.log = logging.getLogger(__name__)
+
+        self.log.debug("Parsing pom " + filepath)
         self.projectRoot = projectRoot
-        modulePath = os.path.dirname(filepath)
-        sourcePath = modulePath + "/src/main/c++"
+
+        self.modulePath = os.path.dirname(filepath)
+        sourcePath = self.modulePath + "/src/main/c++"
         if os.path.isdir(sourcePath):
             self.buildOptions["srcPath"]  = sourcePath
-        includePath = modulePath + "/src/main/include"
+        else:
+            self.log.debug(filepath + " + is a parent pom")
+
+        includePath = self.modulePath + "/src/main/include"
         if os.path.isdir(includePath):
             self.buildOptions["incPath"]  = includePath
+        else:
+            self.log.debug(filepath + " + is a parent pom")
 
         tree = ETree.parse(filepath)
         projectElem = tree.getroot()
@@ -46,12 +54,12 @@ class PomParser:
             parentFile = self.parseParentPom(parent, filepath)
         else:
             self.rootPom = filepath
-            print("Root pom: " + self.rootPom)
+
 
         find = projectElem.find("mvn:version", self.ns)
         if find is not None:
             self.version = find.text
-            print("Set project version to " + self.version)
+            self.log.debug("Set project version to " + self.version)
 
         self.gatherProperties(projectElem)
 
@@ -66,9 +74,6 @@ class PomParser:
         dependencies = projectElem.findall("mvn:dependencies/mvn:dependency", self.ns)
         self.gatherDependencies(dependencies)
 
-        for dep in self.dependencies:
-            print(dep.getAol("gpp"))
-
         self.groupId = projectElem.find("mvn:groupId", self.ns).text
         self.artifactId = projectElem.find("mvn:artifactId", self.ns).text
 
@@ -76,7 +81,6 @@ class PomParser:
         for plugin in pluginsNode:
             artifactId = plugin.find("mvn:artifactId", self.ns)
             if artifactId.text == self.NAR_PLUG:
-                print("We have a nar plugin")
                 self.gatherSysLibs(plugin)
                 self.gatherLibraries(plugin)
 
@@ -119,10 +123,11 @@ class PomParser:
                     if managedVersion is not None:
                         version = managedVersion
                     else:
-                        print("WARN - " + artifactId + "." + artifactId + " dependency has no version, ignoring")
+                        self.log.warn(artifactId + "." + artifactId + " dependency has no version, ignoring")
                         return
                 dep = mvnDep.MavenDependency(groupId, artifactId, version, type)
                 self.dependencies.append(dep)
+                self.log.debug("Found nar dependency: " + dep.getAol("gpp"))
 
     def gatherAllNarDepManagement(self, dependencyManagements):
         for management in dependencyManagements:
