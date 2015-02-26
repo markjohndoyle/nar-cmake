@@ -42,7 +42,6 @@ class CmakeBuilder:
         self.addType()
         self.linkDirectories()
         self.setOutputDir()
-        # self.addSourceDir()
 
 
     def addType(self):
@@ -72,17 +71,18 @@ class CmakeBuilder:
     def addAllSources(self):
         sources = []
         for srcDir in os.listdir(self.srcPath):
+            self.makeFile.write("add_subdirectory(" +self.srcPath + "/" + srcDir + ")\n")
             for file in os.listdir(self.srcPath + "/" + srcDir):
                 if file.endswith(tuple(self.srcExts)):
                     sources.append(file)
 
-        self.makeFile.write("set(SOURCES " + " ".join(sources) + ")\n\n")
+        self.makeFile.write("\nset(SOURCES " + " ".join(sources) + ")\n\n")
 
     def linkDirectories(self):
         target = self.libPath
 
     def setOutputDir(self):
-        self.makeFile.write("set(CMAKE_RUNTIME_OUTPUT_DIRECTORY " + self.target + ")\n")
+        self.makeFile.write("add_subdirectory(self.target" + ")\n")
 
 
 
