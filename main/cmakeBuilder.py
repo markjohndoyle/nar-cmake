@@ -25,7 +25,7 @@ class CmakeBuilder:
         self.testLibPath = os.path.join(self.projectPath,  "target", "test-nar")
         self.dependencies = pomParser.dependencies
 
-        self.target = os.path.join(".", "target")
+        self.target = "target"
         # TODO get this from nar config
         self.srcExts = {"c", "cpp"}
 
@@ -89,7 +89,7 @@ class CmakeBuilder:
         target = self.libPath
 
     def setOutputDir(self):
-        self.makeFile.write("set(CMAKE_CURRENT_BINARY_DIR \"" + os.path.join(self.target, "cmake") + "\")\n")
+        self.makeFile.write("set(CMAKE_CURRENT_BINARY_DIR \" ${CMAKE_CURRENT_SOURCE_DIR}" + os.path.sep + os.path.join(self.target, "cmake") + "\")\n")
         self.makeFile.write("\n")
 
     def addLinkLibs(self):
