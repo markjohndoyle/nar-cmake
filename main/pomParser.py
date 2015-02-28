@@ -79,7 +79,7 @@ class PomParser:
     # the poms and uses conventional src/main/c++
     def setSourcePath(self, filepath):
         self.modulePath = os.path.dirname(filepath)
-        sourcePath = self.modulePath + "/src/main/c++"
+        sourcePath = os.path.join(self.modulePath, "src", "main", "c++")
         # Parses the pom pulling out nar specifics.
         if os.path.isdir(sourcePath):
             self.buildOptions["srcPath"] = sourcePath
@@ -89,7 +89,7 @@ class PomParser:
     # Set the include path in build options - currently ignores include path in
     # the poms and uses conventional src/main/c++
     def setIncludePath(self, filepath):
-        includePath = self.modulePath + "/src/main/include"
+        includePath = os.path.join(self.modulePath, "src", "main", "include")
         if os.path.isdir(includePath):
             self.buildOptions["incPath"] = includePath
         else:

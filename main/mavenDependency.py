@@ -9,9 +9,13 @@ class MavenDependency:
         self.artifactId = artifactId
         self.type = artifactType
         self.version = version
+        self.libType = "shared"
 
+
+    def getFullNarName(self, linker) -> str:
+        arch = platform.machine().lower()
+        os = platform.system()
+        return self.artifactId + "-" + self.version + "-" + arch + "-" + os + "-" + linker + "-" + self.libType
 
     def getAol(self, linker) -> str:
-        os = platform.system()
-        arch = platform.machine().lower()
-        return self.artifactId + "-" + self.version + "-" + arch + "-" + os + "-" + linker + "-shared"
+        return platform.machine().lower() + "-" + platform.system() + "-" + linker
