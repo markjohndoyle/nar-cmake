@@ -22,7 +22,7 @@ class CmakeBuilder:
         self.incPath = pomParser.buildOptions["incPath"]
         self.libPath = self.projectPath + "/target/nar"
         self.testLibPath = self.projectPath + "/target/test-nar"
-        self.target = "./target/cmake"
+        self.target = "./target"
 
         # TODO get this from nar config
         self.srcExts = {"c", "cpp"}
@@ -82,7 +82,7 @@ class CmakeBuilder:
         target = self.libPath
 
     def setOutputDir(self):
-        self.makeFile.write("add_subdirectory(self.target" + ")\n")
+        self.makeFile.write("add_subdirectory(" + os.path.join(self.target, "cmake") + ")\n")
 
 
 
