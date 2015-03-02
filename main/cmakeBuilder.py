@@ -13,7 +13,7 @@ class CmakeBuilder:
         self.log = logging.getLogger("__NAME__")
         self.projectPath = projectPath
         self.m2dir = os.path.join(expanduser("~"), ".m2", "repository")
-        self.makeFile = open(os.path.join(self.projectPath,  "CMakeLists.txt"), "w")
+        self.makeFile = open(os.path.join(self.projectPath, "CMakeLists.txt"), "w")
         self.groupId = pomParser.groupId
         self.artifactId = pomParser.artifactId
         self.version = pomParser.version
@@ -22,9 +22,9 @@ class CmakeBuilder:
         self.srcPath = pomParser.buildOptions["srcPath"]
         self.incPath = pomParser.buildOptions["incPath"]
         self.libPath = os.path.join(self.projectPath, "target", "nar")
-        self.testLibPath = os.path.join(self.projectPath,  "target", "test-nar")
+        self.testLibPath = os.path.join(self.projectPath, "target", "test-nar")
         self.dependencies = pomParser.dependencies
-
+        self.headerPostfix = "-noarch"
         self.target = "target"
         # TODO get this from nar config
         self.srcExts = {"c", "cpp"}
@@ -39,7 +39,7 @@ class CmakeBuilder:
 
         self.addCxxFlags()
         self.setOutputDir()
-        self.addIncludeDir()
+        self.addIncludeDirs()
         self.addAllSources()
         self.linkDirectories()
         self.addLinkLibs()
@@ -66,12 +66,22 @@ class CmakeBuilder:
     def addSourceDir(self):
         self.makeFile.write("# Source directory block")
         for srcDir in os.listdir(self.srcPath):
-            self.makeFile.write("add_subdirectory(" + os.path.join(self.projectPath,  srcDir) + ")\n")
+            self.makeFile.write("add_subdirectory(" + os.path.join(self.projectPath, srcDir) + ")\n")
         self.makeFile.write("\n")
 
-    def addIncludeDir(self):
+    def addIncludeDirs(self):
+        # Add project/module include dirs
         for incDir in os.listdir(self.incPath):
             self.makeFile.write("include_directories(" + os.path.join(self.projectPath, incDir) + ")\n")
+
+        # Add dependency includes - This may be local, that is, within the same project hierarchy (another
+        # module) or external, that is, brought in by maven to this project's/module's target area.
+        for dep in self.dependencies:
+            mvnDep = dep.mvnDep
+            headerPath = os.path.join(self.libPath, mvnDep.artifactId + "-" + mvnDep.version + self.headerPostfix,
+                                      "include")
+            if os.path.exists(headerPath):
+                self.makeFile.write("include_directories(" + headerPath + ")\n")
         self.makeFile.write("\n")
 
     def addAllSources(self):
@@ -89,7 +99,9 @@ class CmakeBuilder:
         target = self.libPath
 
     def setOutputDir(self):
-        self.makeFile.write("set(CMAKE_CURRENT_BINARY_DIR \" ${CMAKE_CURRENT_SOURCE_DIR}" + os.path.sep + os.path.join(self.target, "cmake") + "\")\n")
+        self.makeFile.write(
+            "set(CMAKE_CURRENT_BINARY_DIR \" ${CMAKE_CURRENT_SOURCE_DIR}" + os.path.sep + os.path.join(self.target,
+                                                                                                       "cmake") + "\")\n")
         self.makeFile.write("\n")
 
     def addLinkLibs(self):
@@ -99,14 +111,17 @@ class CmakeBuilder:
                 print("Not a local dependency")
                 mvnDep = dep.mvnDep
                 # Find in target/nar
-                libPath = os.path.join(self.libPath, mvnDep.getFullNarName("gpp"), "lib", mvnDep.getAol("gpp"), mvnDep.libType)
+                libPath = os.path.join(self.libPath, mvnDep.getFullNarName("gpp"), "lib", mvnDep.getAol("gpp"),
+                                       mvnDep.libType)
                 # TODO move test libs to mvnDependency scope
-                testLibPath = os.path.join(self.testLibPath, mvnDep.getFullNarName("gpp"), "lib", mvnDep.getAol("gpp"), mvnDep.libType)
+                testLibPath = os.path.join(self.testLibPath, mvnDep.getFullNarName("gpp"), "lib", mvnDep.getAol("gpp"),
+                                           mvnDep.libType)
                 if os.path.exists(libPath):
                     for file in os.listdir(libPath):
                         if mvnDep.artifactId in file:
                             print("Found lib at " + os.path.join(libPath, file))
-                            self.makeFile.write("find_library (" + mvnDep.getFullNarName("gpp").upper() + " " + file + " " + libPath + "\)\n")
+                            self.makeFile.write("find_library(" + mvnDep.getFullNarName(
+                                "gpp").upper() + " " + file + " " + libPath + "\)\n")
                 elif os.path.exists(testLibPath):
                     for file in os.listdir(testLibPath):
                         if mvnDep.artifactId in file:
