@@ -9,6 +9,8 @@ class CmakeBuilder:
     # this is the directory where the currently processed CMakeLists.txt is located in
     CMAKE_CURRENT_SOURCE_DIR = "${CMAKE_CURRENT_SOURCE_DIR }"
 
+    libsTolink = []
+
     def __init__(self, pomParser, projectPath):
         self.log = logging.getLogger("__NAME__")
         self.projectPath = projectPath
@@ -27,14 +29,15 @@ class CmakeBuilder:
         self.headerPostfix = "-noarch"
         self.target = "target"
         # TODO get this from nar config
-        self.srcExts = {"c", "cpp"}
+        self.srcExts = {"c", "cpp" }
+        self.binaryName = self.artifactId + "-" + self.version
 
 
     def build(self):
         self.log.info("Generating " + self.makeFile.name)
 
         self.makeFile.write("make_minimum_required (VERSION 2.6)\n\n")
-        self.makeFile.write("project (" + self.groupId + "." + self.artifactId + ")\n")
+        self.makeFile.write("project (" + self.binaryName + ")\n")
         self.makeFile.write("\n")
 
         self.addCxxFlags()
@@ -42,19 +45,19 @@ class CmakeBuilder:
         self.addIncludeDirs()
         self.addAllSources()
         self.linkDirectories()
-        self.addLinkLibs()
+        self.addLinkLibraries()
 
-        self.addType()
+        self.addBinaryOutput()
+        self.linkLibraries()
 
-
-    def addType(self):
+    def addBinaryOutput(self):
         self.makeFile.write("# Targets block\n")
         if self.output == "executable":
             self.makeFile.write("add_executable(" + self.artifactId + "-" + self.version + " ${SOURCES})\n")
         elif self.output == "shared":
-            self.makeFile.write("add_library(" + self.artifactId + "-" + self.version + " ${SOURCES})\n")
+            self.makeFile.write("add_library(" + self.artifactId + "-" + self.version + " SHARED ${SOURCES})\n")
         elif self.output == "static":
-            self.makeFile.write("add_library(" + self.artifactId + "-" + self.version + " ${SOURCES})\n")
+            self.makeFile.write("add_library(" + self.artifactId + "-" + self.version + " STATIC ${SOURCES})\n")
         else:
             raise Exception("Unknown output type " + self.output)
         self.makeFile.write("\n")
@@ -93,18 +96,20 @@ class CmakeBuilder:
                 if file.endswith(tuple(self.srcExts)):
                     sources.append(file)
 
-        self.makeFile.write("\nset(SOURCES " + " ".join(sources) + ")\n\n")
+        self.makeFile.write("\n")
+        self.makeFile.write("set(SOURCES " + " ".join(sources) + ")\n")
+        self.makeFile.write("\n")
 
     def linkDirectories(self):
         target = self.libPath
 
     def setOutputDir(self):
         self.makeFile.write(
-            "set(CMAKE_CURRENT_BINARY_DIR \" ${CMAKE_CURRENT_SOURCE_DIR}" + os.path.sep + os.path.join(self.target,
+            "set(CMAKE_CURRENT_BINARY_DIR \"${CMAKE_CURRENT_SOURCE_DIR}" + os.path.sep + os.path.join(self.target,
                                                                                                        "cmake") + "\")\n")
         self.makeFile.write("\n")
 
-    def addLinkLibs(self):
+    def addLinkLibraries(self):
         self.makeFile.write("# Link libraries block\n")
         for dep in self.dependencies:
             if not dep.foundLocal:
@@ -119,7 +124,7 @@ class CmakeBuilder:
                 if os.path.exists(libPath):
                     for file in os.listdir(libPath):
                         if mvnDep.artifactId in file:
-                            print("Found lib at " + os.path.join(libPath, file))
+                            self.libsTolink.append(os.path.basename(file).rsplit(".", 1)[0])
                             self.makeFile.write("find_library(" + mvnDep.getFullNarName(
                                 "gpp").upper() + " " + file + " " + libPath + "\)\n")
                 elif os.path.exists(testLibPath):
@@ -129,6 +134,12 @@ class CmakeBuilder:
                 else:
                     self.log.error("Could not find lib " + mvnDep.getFullNarName())
         self.makeFile.write("\n")
+
+    def linkLibraries(self):
+        for libToLink in self.libsTolink:
+            self.makeFile.write("target_link_libraries(" + self.binaryName + " " + libToLink + ")")
+            self.makeFile.write("\n")
+
 
 
 
