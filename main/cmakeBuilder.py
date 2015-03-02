@@ -124,9 +124,9 @@ class CmakeBuilder:
                 if os.path.exists(libPath):
                     for file in os.listdir(libPath):
                         if mvnDep.artifactId in file:
-                            self.libsTolink.append(os.path.basename(file).rsplit(".", 1)[0])
-                            self.makeFile.write("find_library(" + mvnDep.getFullNarName(
-                                "gpp").upper() + " " + file + " " + libPath + "\)\n")
+                            libId = os.path.basename(file).rsplit(".", 1)[0].upper()
+                            self.libsTolink.append(libId)
+                            self.makeFile.write("find_library(" + libId + " " + file + " " + libPath + "\)\n")
                 elif os.path.exists(testLibPath):
                     for file in os.listdir(testLibPath):
                         if mvnDep.artifactId in file:
