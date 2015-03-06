@@ -36,7 +36,7 @@ class CmakeBuilder:
     def build(self):
         self.log.info("Generating " + self.makeFile.name)
 
-        self.makeFile.write("make_minimum_required (VERSION 2.6)\n\n")
+        self.makeFile.write("cmake_minimum_required (VERSION 3.1.3)\n\n")
         self.makeFile.write("project (" + self.binaryName + ")\n")
         self.makeFile.write("\n")
 
