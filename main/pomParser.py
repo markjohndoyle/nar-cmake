@@ -25,7 +25,10 @@ class PomParser:
         "debug": True,
         "compilerFlags": {"-std=c++11"},
         "sysLibs": set(),
-        "output": "executable"}
+        "output": "executable"
+    }
+    Module = namedtuple("module", "groupId artifactId path")
+    localModules = []
 
     properties = {}
 
@@ -34,25 +37,26 @@ class PomParser:
         self.log.debug("Parsing pom " + filepath)
 
         self.projectRoot = projectRoot
-
-        self.setSourcePath(filepath)
-
-        self.setIncludePath(filepath)
+        self.projectPath = filepath
 
         tree = ETree.parse(filepath)
         self.projectElem = tree.getroot()
 
+        rootParent = False
         # Here we get the parent element from the pom. If there is one then this is a child
         # pom and we need to parse the parent first.
         parent = self.getParent()
         if parent is not None:
             parentFile = self.parseParentPom(parent, filepath)
+        else:
+            rootParent = True
 
         self.projectElem = tree.getroot()
 
         self.gatherProperties()
-
         self.setProjectVersion()
+        self.setSourcePath(filepath)
+        self.setIncludePath(filepath)
 
         plugins = self.projectElem.findall("mvn:build/mvn:pluginManagement/mvn:plugins/mvn:plugin", self.ns)
         self.gatherNarPluginConfig(plugins)
@@ -67,9 +71,9 @@ class PomParser:
         print(filepath + " has " + str(len(dependenciesElem)) + " elements")
         self.gatherDependencies(dependenciesElem)
 
-        print("----------------------")
-        self.determineDependencyLocalities(os.path.dirname(filepath))
-        print("----------------------")
+        if rootParent:
+            print("Root parent " + filepath + " - gathering modules")
+            self.gatherLocalModules(self.projectElem, self.projectPath)
 
         self.groupId = self.projectElem.find("mvn:groupId", self.ns).text
         self.artifactId = self.projectElem.find("mvn:artifactId", self.ns).text
@@ -83,8 +87,9 @@ class PomParser:
         # Parses the pom pulling out nar specifics.
         if os.path.isdir(sourcePath):
             self.buildOptions["srcPath"] = sourcePath
+            self.log.debug(filepath + " source directories set to " + sourcePath)
         else:
-            self.log.debug(filepath + " + is a parent pom")
+            self.log.debug(filepath + " does not have any source directories.")
 
     # Set the include path in build options - currently ignores include path in
     # the poms and uses conventional src/main/c++
@@ -92,8 +97,9 @@ class PomParser:
         includePath = os.path.join(self.modulePath, "src", "main", "include")
         if os.path.isdir(includePath):
             self.buildOptions["incPath"] = includePath
+            self.log.debug(filepath + " include directories set to " + includePath)
         else:
-            self.log.debug(filepath + " + is a parent pom")
+            self.log.debug(filepath + " does not have any source directories.")
 
     def gatherNarPluginConfig(self, pluginsNode):
         for plugin in pluginsNode:
@@ -116,6 +122,7 @@ class PomParser:
             self.buildOptions["output"] = outLib.text
 
     def getParent(self):
+        print("Searching for parent in " + self.projectElem.find("mvn:artifactId", self.ns).text)
         parent = self.projectElem.find("mvn:parent", self.ns)
         return parent
 
@@ -172,17 +179,18 @@ class PomParser:
 
     # Determines if the given dependency is local to this module, that is, is the
     # dependency a child module (a project in itself).
-    def determineDependencyLocalities(self, moduleRoot):
+    def determineDependencyLocalities(self, moduleRootPath):
         if len(self.dependencies) > 0:
-            self.log.debug("Determining dependency localities from module " + moduleRoot)
+            self.log.debug("Determining dependency localities from module " + moduleRootPath)
         else:
             print("no dependencies found yet, not worth searching...")
+
         for dep in self.dependencies:
             mvnDep = dep.mvnDep
             # Search each subdirectory except target area TODO get target from pom in case it's altered
             modules = self.projectElem.findall("mvn:modules/mvn:module", self.ns)
             for module in modules:
-                modPomPath = os.path.join(moduleRoot, module.text, "pom.xml")
+                modPomPath = os.path.join(moduleRootPath, module.text, "pom.xml")
                 if os.path.exists(modPomPath):
                     modulePom = open(modPomPath)
                     print("Found pom for module " + modPomPath)
@@ -196,3 +204,42 @@ class PomParser:
         if find is not None:
             self.version = find.text
             self.log.debug("Set project version to " + self.version)
+
+    def gatherLocalModules(self, projectElem, projectPath):
+        print("Looking for modules in " + projectElem.find("mvn:artifactId", self.ns).text)
+
+        modules = projectElem.findall("mvn:modules/mvn:module", self.ns)
+        profiles = projectElem.findall("mvn:profiles/mvn:profile", self.ns)
+        activeProfile = self.findActiveProfile(profiles)
+        if activeProfile is not None:
+            print("Using profile")
+            # we must use the modules list from the profile
+            modules = activeProfile.findall("mvn:modules/mvn:module", self.ns)
+        else:
+            print("No profiles found.")
+
+        for module in modules:
+            print("Looking for module " + module.text)
+            modPomPath = os.path.join(os.path.dirname(projectPath), module.text, "pom.xml")
+            if os.path.exists(modPomPath):
+                modPomRootElem = ETree.parse(modPomPath)
+                packaging = modPomRootElem.find("mvn:packaging", self.ns).text
+                if packaging == "nar":
+                    print("Found nar module at " + modPomPath)
+                    groupId = modPomRootElem.find("mvn:groupId", self.ns).text
+                    artifactId = modPomRootElem.find("mvn:artifactId", self.ns).text
+                    self.localModules.append(self.Module(groupId, artifactId, modPomPath))
+                self.gatherLocalModules(modPomRootElem, modPomPath)
+            else:
+                self.log.warn(
+                    "Module not found on disk - possibly not checked out from source control or the module entry in the pom is erroneous.")
+
+    # Only returns the first active profile - multiple active profiles are not supported.
+    def findActiveProfile(self, profiles):
+        for profile in profiles:
+            activation = profile.find("mvn:activation", self.ns)
+            if activation is not None:
+                active = activation.find("mvn:activeByDefault", self.ns)
+                if active is not None:
+                    return profile
+
