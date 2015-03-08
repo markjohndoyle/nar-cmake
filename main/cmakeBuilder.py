@@ -12,6 +12,7 @@ class CmakeBuilder:
     libsTolink = []
 
     def __init__(self, pomParser, projectPath):
+        self.parser = pomParser;
         self.log = logging.getLogger("__NAME__")
         self.projectPath = projectPath
         self.m2dir = os.path.join(expanduser("~"), ".m2", "repository")
@@ -21,8 +22,6 @@ class CmakeBuilder:
         self.version = pomParser.version
         self.output = pomParser.buildOptions["output"]
         self.cxxFlags = pomParser.buildOptions["compilerFlags"]
-        self.srcPath = pomParser.buildOptions["srcPath"]
-        self.incPath = pomParser.buildOptions["incPath"]
         self.libPath = os.path.join(self.projectPath, "target", "nar")
         self.testLibPath = os.path.join(self.projectPath, "target", "test-nar")
         self.dependencies = pomParser.dependencies
@@ -41,7 +40,7 @@ class CmakeBuilder:
         self.makeFile.write("\n")
 
         self.addCxxFlags()
-        self.setOutputDir()
+        # self.setOutputDir()
         self.addIncludeDirs()
         self.addAllSources()
         self.linkDirectories()
@@ -74,8 +73,9 @@ class CmakeBuilder:
 
     def addIncludeDirs(self):
         # Add project/module include dirs
-        for incDir in os.listdir(self.incPath):
-            self.makeFile.write("include_directories(" + os.path.join(self.projectPath, incDir) + ")\n")
+        incPath = self.parser.buildOptions["incPath"]
+        for incDir in os.listdir(incPath):
+            self.makeFile.write("include_directories(" + os.path.join(incPath, incDir) + ")\n")
 
         # Add dependency includes - This may be local, that is, within the same project hierarchy (another
         # module) or external, that is, brought in by maven to this project's/module's target area.
@@ -89,10 +89,11 @@ class CmakeBuilder:
 
     def addAllSources(self):
         self.makeFile.write("# Source file block\n")
+        srcPath = self.parser.buildOptions["srcPath"]
         sources = []
-        for srcDir in os.listdir(self.srcPath):
-            self.makeFile.write("add_subdirectory(" + os.path.join(self.srcPath, srcDir) + ")\n")
-            for file in os.listdir(self.srcPath + "/" + srcDir):
+        for srcDir in os.listdir(srcPath):
+            self.makeFile.write("add_subdirectory(" + os.path.join(srcPath, srcDir) + ")\n")
+            for file in os.listdir(srcPath + "/" + srcDir):
                 if file.endswith(tuple(self.srcExts)):
                     sources.append(file)
 
