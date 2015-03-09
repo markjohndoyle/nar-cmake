@@ -28,8 +28,7 @@ class PomParser:
         "output": "executable"
     }
     Module = namedtuple("module", "groupId artifactId path")
-    localModules = []
-
+    localModules = {}
     properties = {}
 
     def parsePom(self, filepath, projectRoot):
@@ -151,7 +150,11 @@ class PomParser:
                         self.log.warn(artifactId + "." + artifactId + " dependency has no version, ignoring")
                         return
                 dep = mvnDep.MavenDependency(groupId, artifactId, version, type)
-                self.dependencies.append(self.Dependency(mvnDep=dep, foundLocal=False, localPath=""))
+                if groupId + "." + artifactId in self.localModules:
+                    self.dependencies.append(self.Dependency(mvnDep=dep, foundLocal=True,
+                                                             localPath=self.localModules[groupId + "." + artifactId]))
+                else:
+                    self.dependencies.append(self.Dependency(mvnDep=dep, foundLocal=False, localPath=None))
                 self.log.debug("Found nar dependency: " + dep.getAol("gpp"))
 
     def gatherAllNarDepManagement(self, dependencyManagements):
@@ -228,7 +231,7 @@ class PomParser:
                     print("Found nar module at " + modPomPath)
                     groupId = modPomRootElem.find("mvn:groupId", self.ns).text
                     artifactId = modPomRootElem.find("mvn:artifactId", self.ns).text
-                    self.localModules.append(self.Module(groupId, artifactId, modPomPath))
+                    self.localModules[groupId + "." + artifactId] = os.path.dirname(modPomPath)
                 self.gatherLocalModules(modPomRootElem, modPomPath)
             else:
                 self.log.warn(

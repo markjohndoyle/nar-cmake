@@ -28,7 +28,7 @@ class CmakeBuilder:
         self.headerPostfix = "-noarch"
         self.target = "target"
         # TODO get this from nar config
-        self.srcExts = {"c", "cpp" }
+        self.srcExts = {"c", "cpp"}
         self.binaryName = self.artifactId + "-" + self.version
 
 
@@ -81,10 +81,17 @@ class CmakeBuilder:
         # module) or external, that is, brought in by maven to this project's/module's target area.
         for dep in self.dependencies:
             mvnDep = dep.mvnDep
-            headerPath = os.path.join(self.libPath, mvnDep.artifactId + "-" + mvnDep.version + self.headerPostfix,
-                                      "include")
+            if dep.foundLocal:
+                print("###LOCAL")
+                headerPath = os.path.join(self.parser.localModules[mvnDep.groupId + "." + mvnDep.artifactId], "src",
+                                          "main", "include")
+            else:
+                headerPath = os.path.join(self.libPath, mvnDep.artifactId + "-" + mvnDep.version + self.headerPostfix,
+                                          "include")
             if os.path.exists(headerPath):
                 self.makeFile.write("include_directories(" + headerPath + ")\n")
+            else:
+                self.log.error("header path " + headerPath + " does not exist")
         self.makeFile.write("\n")
 
     def addAllSources(self):
@@ -107,7 +114,7 @@ class CmakeBuilder:
     def setOutputDir(self):
         self.makeFile.write(
             "set(CMAKE_CURRENT_BINARY_DIR \"${CMAKE_CURRENT_SOURCE_DIR}" + os.path.sep + os.path.join(self.target,
-                                                                                                       "cmake") + "\")\n")
+                                                                                                      "cmake") + "\")\n")
         self.makeFile.write("\n")
 
     def addLinkLibraries(self):
