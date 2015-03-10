@@ -79,19 +79,18 @@ class CmakeBuilder:
 
         # Add dependency includes - This may be local, that is, within the same project hierarchy (another
         # module) or external, that is, brought in by maven to this project's/module's target area.
-        for dep in self.dependencies:
-            mvnDep = dep.mvnDep
+        for dep in self.dependencies.values():
+            # mvnDep = dep.mvnDep
             if dep.foundLocal:
-                print("###LOCAL")
-                headerPath = os.path.join(self.parser.localModules[mvnDep.groupId + "." + mvnDep.artifactId], "src",
+                headerPath = os.path.join(self.parser.localModules[dep.groupId + "." + dep.artifactId], "src",
                                           "main", "include")
             else:
-                headerPath = os.path.join(self.libPath, mvnDep.artifactId + "-" + mvnDep.version + self.headerPostfix,
+                headerPath = os.path.join(self.libPath, dep.artifactId + "-" + dep.version + self.headerPostfix,
                                           "include")
             if os.path.exists(headerPath):
                 self.makeFile.write("include_directories(" + headerPath + ")\n")
             else:
-                self.log.error("header path " + headerPath + " does not exist")
+                self.log.error("header path " + headerPath + " does not exist. Currently not supporting test includes.")
         self.makeFile.write("\n")
 
     def addAllSources(self):
@@ -119,28 +118,27 @@ class CmakeBuilder:
 
     def addLinkLibraries(self):
         self.makeFile.write("# Link libraries block\n")
-        for dep in self.dependencies:
+        for dep in self.dependencies.values():
             if not dep.foundLocal:
-                print("Not a local dependency")
-                mvnDep = dep.mvnDep
+                # mvnDep = dep.mvnDep
                 # Find in target/nar
-                libPath = os.path.join(self.libPath, mvnDep.getFullNarName("gpp"), "lib", mvnDep.getAol("gpp"),
-                                       mvnDep.libType)
+                libPath = os.path.join(self.libPath, dep.getFullNarName("gpp"), "lib", dep.getAol("gpp"),
+                                       dep.libType)
                 # TODO move test libs to mvnDependency scope
-                testLibPath = os.path.join(self.testLibPath, mvnDep.getFullNarName("gpp"), "lib", mvnDep.getAol("gpp"),
-                                           mvnDep.libType)
+                testLibPath = os.path.join(self.testLibPath, dep.getFullNarName("gpp"), "lib", dep.getAol("gpp"),
+                                           dep.libType)
                 if os.path.exists(libPath):
                     for file in os.listdir(libPath):
-                        if mvnDep.artifactId in file:
+                        if dep.artifactId in file:
                             libId = os.path.basename(file).rsplit(".", 1)[0].upper()
                             self.libsTolink.append(libId)
                             self.makeFile.write("find_library(" + libId + " " + file + " " + libPath + "\)\n")
                 elif os.path.exists(testLibPath):
                     for file in os.listdir(testLibPath):
-                        if mvnDep.artifactId in file:
+                        if dep.artifactId in file:
                             print("Found lib at " + os.path.join(libPath, file))
                 else:
-                    self.log.error("Could not find lib " + mvnDep.getFullNarName())
+                    self.log.warn("Could not find lib " + dep.getFullNarName("gpp") + " it could be a header only dependency.")
         self.makeFile.write("\n")
 
     def linkLibraries(self):

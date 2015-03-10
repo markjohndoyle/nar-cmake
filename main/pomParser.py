@@ -16,8 +16,7 @@ class PomParser:
     targetDir = "target"
 
     dependencyVersions = {}
-    Dependency = namedtuple("Dependency", "mvnDep foundLocal localPath")
-    dependencies = []
+    dependencies = {}
     projectLocalDependencies = []
     buildOptions = {
         "compiler": "g++",
@@ -67,11 +66,9 @@ class PomParser:
         self.gatherAllNarDepManagement(dependencyManagements)
 
         dependenciesElem = self.projectElem.findall("mvn:dependencies/mvn:dependency", self.ns)
-        print(filepath + " has " + str(len(dependenciesElem)) + " elements")
         self.gatherDependencies(dependenciesElem)
 
         if rootParent:
-            print("Root parent " + filepath + " - gathering modules")
             self.gatherLocalModules(self.projectElem, self.projectPath)
 
         self.groupId = self.projectElem.find("mvn:groupId", self.ns).text
@@ -121,7 +118,6 @@ class PomParser:
             self.buildOptions["output"] = outLib.text
 
     def getParent(self):
-        print("Searching for parent in " + self.projectElem.find("mvn:artifactId", self.ns).text)
         parent = self.projectElem.find("mvn:parent", self.ns)
         return parent
 
@@ -133,29 +129,39 @@ class PomParser:
         self.parsePom(parentDir + "/pom.xml", self.projectRoot)
 
     def gatherDependencies(self, dependenciesElem):
-        for dependency in dependenciesElem:
-            typeDef = dependency.find("mvn:type", self.ns)
-            if typeDef is not None:
-                groupId = dependency.find("mvn:groupId", self.ns).text
-                artifactId = dependency.find("mvn:artifactId", self.ns).text
+        for depElem in dependenciesElem:
+            artifactId = depElem.find("mvn:artifactId", self.ns).text
+            groupId = depElem.find("mvn:groupId", self.ns).text
+            typeDef = depElem.find("mvn:type", self.ns)
+            if typeDef is not None and typeDef.text == "nar":
                 type = typeDef.text
-                versionDef = dependency.find("mvn:version", self.ns)
+                versionDef = depElem.find("mvn:version", self.ns)
                 if versionDef is not None:
                     version = versionDef.text
                 else:
-                    managedVersion = self.dependencyVersions[groupId + "." + artifactId]
-                    if managedVersion is not None:
-                        version = managedVersion
+                    if groupId + "." + artifactId in self.dependencyVersions:
+                        version = self.dependencyVersions[groupId + "." + artifactId]
                     else:
                         self.log.warn(artifactId + "." + artifactId + " dependency has no version, ignoring")
                         return
                 dep = mvnDep.MavenDependency(groupId, artifactId, version, type)
                 if groupId + "." + artifactId in self.localModules:
-                    self.dependencies.append(self.Dependency(mvnDep=dep, foundLocal=True,
-                                                             localPath=self.localModules[groupId + "." + artifactId]))
-                else:
-                    self.dependencies.append(self.Dependency(mvnDep=dep, foundLocal=False, localPath=None))
-                self.log.debug("Found nar dependency: " + dep.getAol("gpp"))
+                    dep.foundLocal = True
+                    dep.localPath = self.localModules[groupId + "." + artifactId]
+
+                self.dependencies[str(dep)] = dep
+
+                # Gather transitive dependencies.
+                # Find pom of dependency - if it's external it's in the project's target area, otherwise it's in the
+                # localPath
+                if dep.foundLocal:
+                    depProjectElem = ETree.parse(os.path.join(dep.localPath, "pom.xml"))
+                    transitiveDeps = depProjectElem.findall("mvn:dependencies/mvn:dependency", self.ns)
+                    if transitiveDeps is not None:
+                        self.gatherDependencies(transitiveDeps)
+                    else:
+                        print("No transitive dependencies in " + depElem.getFullNarName("gpp"))
+
 
     def gatherAllNarDepManagement(self, dependencyManagements):
         for management in dependencyManagements:
@@ -196,7 +202,6 @@ class PomParser:
                 modPomPath = os.path.join(moduleRootPath, module.text, "pom.xml")
                 if os.path.exists(modPomPath):
                     modulePom = open(modPomPath)
-                    print("Found pom for module " + modPomPath)
                     # parse it and check it matches the mvnDep, if so we can reference the library in
                     # the cmake output dir
                     # TODO implement this, the module will have a target/cmake dir with it's build in.
@@ -209,26 +214,19 @@ class PomParser:
             self.log.debug("Set project version to " + self.version)
 
     def gatherLocalModules(self, projectElem, projectPath):
-        print("Looking for modules in " + projectElem.find("mvn:artifactId", self.ns).text)
-
         modules = projectElem.findall("mvn:modules/mvn:module", self.ns)
         profiles = projectElem.findall("mvn:profiles/mvn:profile", self.ns)
         activeProfile = self.findActiveProfile(profiles)
         if activeProfile is not None:
-            print("Using profile")
             # we must use the modules list from the profile
             modules = activeProfile.findall("mvn:modules/mvn:module", self.ns)
-        else:
-            print("No profiles found.")
 
         for module in modules:
-            print("Looking for module " + module.text)
             modPomPath = os.path.join(os.path.dirname(projectPath), module.text, "pom.xml")
             if os.path.exists(modPomPath):
                 modPomRootElem = ETree.parse(modPomPath)
                 packaging = modPomRootElem.find("mvn:packaging", self.ns).text
                 if packaging == "nar":
-                    print("Found nar module at " + modPomPath)
                     groupId = modPomRootElem.find("mvn:groupId", self.ns).text
                     artifactId = modPomRootElem.find("mvn:artifactId", self.ns).text
                     self.localModules[groupId + "." + artifactId] = os.path.dirname(modPomPath)
