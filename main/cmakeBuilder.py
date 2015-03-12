@@ -76,7 +76,7 @@ class CmakeBuilder:
         # Add project/module include dirs
         incPath = self.parser.buildOptions["incPath"]
         for incDir in os.listdir(incPath):
-            self.makeFile.write("include_directories(" + os.path.join(incPath, incDir) + ")\n")
+            self.makeFile.write("include_directories(" + os.path.join(incPath, incDir).replace("\\", "/") + ")\n")
 
         # Add dependency includes - This may be local, that is, within the same project hierarchy (another
         # module) or external, that is, brought in by maven to this project's/module's target area.
@@ -89,7 +89,7 @@ class CmakeBuilder:
                 headerPath = os.path.join(self.libPath, dep.artifactId + "-" + dep.version + self.headerPostfix,
                                           "include")
             if os.path.exists(headerPath):
-                self.makeFile.write("include_directories(" + headerPath + ")\n")
+                self.makeFile.write("include_directories(" + headerPath.replace("\\", "/") + ")\n")
             else:
                 self.log.error("header path " + headerPath + " does not exist. Currently not supporting test includes.")
         self.makeFile.write("\n")
@@ -106,7 +106,7 @@ class CmakeBuilder:
                     sources.append(os.path.join(srcPath, srcDir, file))
 
         self.makeFile.write("\n")
-        self.makeFile.write("set(SOURCES \n\t" + "\n\t".join(sources) + ")\n")
+        self.makeFile.write("set(SOURCES \n\t" + "\n\t".join(sources).replace("\\", "/") + ")\n")
         self.makeFile.write("\n")
 
     def linkDirectories(self):
@@ -132,7 +132,7 @@ class CmakeBuilder:
                 libPath = os.path.join(dep.path, self.cmakeTarget)
 
             libId = dep.artifactId.upper()
-            self.makeFile.write("find_library(" + libId + " " + dep.artifactId + " HINTS " + libPath + ")\n")
+            self.makeFile.write("find_library(" + libId + " " + dep.artifactId + " HINTS " + libPath.replace("\\", "/") + ")\n")
             self.libsTolink.append(libId)
         self.makeFile.write("\n")
 
