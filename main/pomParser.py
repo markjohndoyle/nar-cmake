@@ -15,7 +15,7 @@ class PomParser:
     parentPathDefault = "../"
     targetDir = "target"
 
-    dependencyVersions = {}
+    dependencyManagement = {}
     dependencies = {}
     projectLocalDependencies = []
     buildOptions = {
@@ -82,7 +82,8 @@ class PomParser:
         sourcePath = os.path.join(self.modulePath, "src", "main", "c++")
         # Parses the pom pulling out nar specifics.
         if os.path.isdir(sourcePath):
-            self.buildOptions["srcPath"] = sourcePath
+            # We now know it exists but cmake will work with relative paths so we don't want the module path
+            self.buildOptions["srcPath"] = os.path.join("src", "main", "c++")
             self.log.debug(filepath + " source directories set to " + sourcePath)
         else:
             self.log.debug(filepath + " does not have any source directories.")
@@ -133,21 +134,28 @@ class PomParser:
             artifactId = depElem.find("mvn:artifactId", self.ns).text
             groupId = depElem.find("mvn:groupId", self.ns).text
             typeDef = depElem.find("mvn:type", self.ns)
+            scopeElem = depElem.find("mvn:scope", self.ns)
             if typeDef is not None and typeDef.text == "nar":
                 type = typeDef.text
                 versionDef = depElem.find("mvn:version", self.ns)
                 if versionDef is not None:
                     version = versionDef.text
                 else:
-                    if groupId + "." + artifactId in self.dependencyVersions:
-                        version = self.dependencyVersions[groupId + "." + artifactId]
+                    if groupId + "." + artifactId in self.dependencyManagement:
+                        version = self.dependencyManagement[groupId + "." + artifactId]["version"]
                     else:
                         self.log.warn(artifactId + "." + artifactId + " dependency has no version, ignoring")
                         return
                 dep = mvnDep.MavenDependency(groupId, artifactId, version, type)
                 if groupId + "." + artifactId in self.localModules:
                     dep.foundLocal = True
-                    dep.localPath = self.localModules[groupId + "." + artifactId]
+                    dep.path = self.localModules[groupId + "." + artifactId]
+
+                if scopeElem is not None:
+                    dep.scope = scopeElem.text
+                else:
+                    if groupId + "." + artifactId in self.dependencyManagement:
+                        dep.scope = self.dependencyManagement[groupId + "." + artifactId]["scope"]
 
                 self.dependencies[str(dep)] = dep
 
@@ -155,7 +163,7 @@ class PomParser:
                 # Find pom of dependency - if it's external it's in the project's target area, otherwise it's in the
                 # localPath
                 if dep.foundLocal:
-                    depProjectElem = ETree.parse(os.path.join(dep.localPath, "pom.xml"))
+                    depProjectElem = ETree.parse(os.path.join(dep.path, "pom.xml"))
                     transitiveDeps = depProjectElem.findall("mvn:dependencies/mvn:dependency", self.ns)
                     if transitiveDeps is not None:
                         self.gatherDependencies(transitiveDeps)
@@ -172,12 +180,14 @@ class PomParser:
                     groupId = management.find("mvn:groupId", self.ns).text
                     artifactId = management.find("mvn:artifactId", self.ns).text
                     version = management.find("mvn:version", self.ns).text
+                    scopeElem = management.find("mvn:scope", self.ns)
+                    scope = "compile" if scopeElem is None else scopeElem.text
                     if version.startswith("${"):
                         if version == "${project.version}":
                             version = self.version
                         else:
                             version = self.properties[version]
-                    self.dependencyVersions[groupId + "." + artifactId] = version
+                    self.dependencyManagement[groupId + "." + artifactId] = {"version":version, "scope":scope}
 
     def gatherProperties(self):
         for prop in self.projectElem.findall("mvn:properties/*", self.ns):

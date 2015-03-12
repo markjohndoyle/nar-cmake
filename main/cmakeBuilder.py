@@ -12,7 +12,7 @@ class CmakeBuilder:
     libsTolink = []
 
     def __init__(self, pomParser, projectPath):
-        self.parser = pomParser;
+        self.parser = pomParser
         self.log = logging.getLogger("__NAME__")
         self.projectPath = projectPath
         self.m2dir = os.path.join(expanduser("~"), ".m2", "repository")
@@ -30,6 +30,7 @@ class CmakeBuilder:
         # TODO get this from nar config
         self.srcExts = {"c", "cpp"}
         self.binaryName = self.artifactId + "-" + self.version
+        self.cmakeTarget = os.path.join(self.target, "cmake")
 
 
     def build(self):
@@ -97,14 +98,15 @@ class CmakeBuilder:
         self.makeFile.write("# Source file block\n")
         srcPath = self.parser.buildOptions["srcPath"]
         sources = []
-        for srcDir in os.listdir(srcPath):
-            self.makeFile.write("add_subdirectory(" + os.path.join(srcPath, srcDir) + ")\n")
-            for file in os.listdir(srcPath + "/" + srcDir):
+        for srcDir in os.listdir(os.path.join(self.projectPath, srcPath)):
+            # self.makeFile.write("add_subdirectory(" + os.path.join(srcPath, srcDir) + ")\n")
+            subSrcPath = os.path.join(self.projectPath, srcPath, srcDir)
+            for file in os.listdir(subSrcPath):
                 if file.endswith(tuple(self.srcExts)):
-                    sources.append(file)
+                    sources.append(os.path.join(srcPath, srcDir, file))
 
         self.makeFile.write("\n")
-        self.makeFile.write("set(SOURCES " + " ".join(sources) + ")\n")
+        self.makeFile.write("set(SOURCES \n\t" + "\n\t".join(sources) + ")\n")
         self.makeFile.write("\n")
 
     def linkDirectories(self):
@@ -112,34 +114,27 @@ class CmakeBuilder:
 
     def setOutputDir(self):
         self.makeFile.write(
-            "set(CMAKE_CURRENT_BINARY_DIR \"${CMAKE_CURRENT_SOURCE_DIR}" + os.path.sep + os.path.join(self.target,
-                                                                                                      "cmake") + "\")\n")
+            "set(CMAKE_CURRENT_BINARY_DIR \"${CMAKE_CURRENT_SOURCE_DIR}" + os.path.sep + self.cmakeTarget + "\")\n")
         self.makeFile.write("\n")
 
+    # Currently no checks are carried otu for header only libs so there may be superfluous find_library entries
     def addLinkLibraries(self):
         self.makeFile.write("# Link libraries block\n")
         for dep in self.dependencies.values():
+            if dep.scope is not "compile":
+                self.log.warn("Only supporting compile scope. " +dep.getFullNarName() + " is " + dep.scope)
+                continue
+
             if not dep.foundLocal:
-                # mvnDep = dep.mvnDep
                 # Find in target/nar
-                libPath = os.path.join(self.libPath, dep.getFullNarName("gpp"), "lib", dep.getAol("gpp"),
-                                       dep.libType)
-                # TODO move test libs to mvnDependency scope
-                testLibPath = os.path.join(self.testLibPath, dep.getFullNarName("gpp"), "lib", dep.getAol("gpp"),
-                                           dep.libType)
-                if os.path.exists(libPath):
-                    for file in os.listdir(libPath):
-                        if dep.artifactId in file:
-                            libId = os.path.basename(file).rsplit(".", 1)[0].upper()
-                            self.libsTolink.append(libId)
-                            self.makeFile.write("find_library(" + libId + " " + file + " " + libPath + "\)\n")
-                elif os.path.exists(testLibPath):
-                    for file in os.listdir(testLibPath):
-                        if dep.artifactId in file:
-                            print("Found lib at " + os.path.join(libPath, file))
-                else:
-                    self.log.warn("Could not find lib " + dep.getFullNarName("gpp") + " it could be a header only dependency.")
+                libPath = os.path.join(self.libPath, dep.getFullNarName("gpp"), "lib", dep.getAol("gpp"), dep.libType)
+            else:
+                libPath = os.path.join(dep.path, self.cmakeTarget)
+
+            libId = dep.artifactId.upper()
+            self.makeFile.write("find_library(" + libId + " " + dep.artifactId + " HINTS " + libPath + "\)\n")
         self.makeFile.write("\n")
+
 
     def linkLibraries(self):
         for libToLink in self.libsTolink:
