@@ -132,7 +132,7 @@ class CmakeBuilder:
                 libPath = os.path.join(dep.path, self.cmakeTarget)
 
             libId = dep.artifactId.upper()
-            self.makeFile.write("find_library(" + libId + " " + dep.artifactId + " HINTS " + libPath + "\)\n")
+            self.makeFile.write("find_library(" + libId + " " + dep.artifactId + " HINTS " + libPath + ")\n")
             self.libsTolink.append(libId)
         self.makeFile.write("\n")
 
