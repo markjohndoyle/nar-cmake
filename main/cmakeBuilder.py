@@ -43,6 +43,7 @@ class CmakeBuilder:
         self.addCxxFlags()
         # self.setOutputDir()
         self.addIncludeDirs()
+        self.addSourceDir()
         self.addAllSources()
         self.linkDirectories()
         self.addLinkLibraries()
@@ -51,7 +52,7 @@ class CmakeBuilder:
         self.linkLibraries()
 
     def addBinaryOutput(self):
-        self.makeFile.write("# Targets block\n")
+        self.makeFile.write("message(\"Creating targets\")\n")
         if self.output == "executable":
             self.makeFile.write("add_executable(" + self.artifactId + "-" + self.version + " ${SOURCES})\n")
         elif self.output == "shared":
@@ -67,12 +68,14 @@ class CmakeBuilder:
         self.makeFile.write("\n")
 
     def addSourceDir(self):
-        self.makeFile.write("# Source directory block")
-        for srcDir in os.listdir(self.srcPath):
-            self.makeFile.write("add_subdirectory(" + os.path.join(self.projectPath, srcDir) + ")\n")
+        self.makeFile.write("message(\"Adding source subdirectories\")\n")
+        srcPath = self.parser.buildOptions["srcPath"]
+        for srcDir in os.listdir(os.path.join(self.projectPath, srcPath)):
+            self.makeFile.write("add_subdirectory(" + os.path.join(srcPath, srcDir).replace("\\", "/") + ")\n")
         self.makeFile.write("\n")
 
     def addIncludeDirs(self):
+        self.makeFile.write("message(\"Adding include directories\")\n")
         # Add project/module include dirs
         incPath = self.parser.buildOptions["incPath"]
         for incDir in os.listdir(incPath):
@@ -95,7 +98,7 @@ class CmakeBuilder:
         self.makeFile.write("\n")
 
     def addAllSources(self):
-        self.makeFile.write("# Source file block\n")
+        self.makeFile.write("message(\"Setting sources\")\n")
         srcPath = self.parser.buildOptions["srcPath"]
         sources = []
         for srcDir in os.listdir(os.path.join(self.projectPath, srcPath)):
@@ -119,7 +122,7 @@ class CmakeBuilder:
 
     # Currently no checks are carried otu for header only libs so there may be superfluous find_library entries
     def addLinkLibraries(self):
-        self.makeFile.write("# Link libraries block\n")
+        self.makeFile.write("message(\"Finding libraries\")\n")
         for dep in self.dependencies.values():
             if dep.scope is not "compile":
                 self.log.warn("Only supporting compile scope. " +dep.getFullNarName() + " is " + dep.scope)
@@ -138,8 +141,9 @@ class CmakeBuilder:
 
 
     def linkLibraries(self):
+        self.makeFile.write("message(\"Creating library linkage\")\n")
         for libToLink in self.libsTolink:
-            self.makeFile.write("target_link_libraries(" + self.binaryName + " " + libToLink + ")")
+            self.makeFile.write("target_link_libraries(" + self.binaryName + " ${" + libToLink + "})")
             self.makeFile.write("\n")
 
 
