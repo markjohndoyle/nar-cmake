@@ -41,9 +41,9 @@ class CmakeBuilder:
         self.makeFile.write("\n")
 
         self.addCxxFlags()
-        # self.setOutputDir()
+        #self.setOutputDir()
         self.addIncludeDirs()
-        self.addSourceDir()
+        #self.addSourceDir()
         self.addAllSources()
         self.linkDirectories()
         self.addLinkLibraries()
@@ -78,8 +78,9 @@ class CmakeBuilder:
         self.makeFile.write("message(\"Adding include directories\")\n")
         # Add project/module include dirs
         incPath = self.parser.buildOptions["incPath"]
-        for incDir in os.listdir(incPath):
-            self.makeFile.write("include_directories(" + os.path.join(incPath, incDir).replace("\\", "/") + ")\n")
+        self.makeFile.write("include_directories(" + incPath.replace("\\", "/") + ")\n")
+        # for incDir in os.listdir(incPath):
+        #   self.makeFile.write("include_directories(" + os.path.join(incPath, incDir).replace("\\", "/") + ")\n")
 
         # Add dependency includes - This may be local, that is, within the same project hierarchy (another
         # module) or external, that is, brought in by maven to this project's/module's target area.
@@ -116,8 +117,8 @@ class CmakeBuilder:
         target = self.libPath
 
     def setOutputDir(self):
-        self.makeFile.write(
-            "set(CMAKE_CURRENT_BINARY_DIR \"${CMAKE_CURRENT_SOURCE_DIR}" + os.path.sep + self.cmakeTarget + "\")\n")
+        outputPath = "${CMAKE_CURRENT_SOURCE_DIR}" + os.path.sep + self.cmakeTarget
+        self.makeFile.write("set(CMAKE_CURRENT_BINARY_DIR " + outputPath.replace("\\", "/") + ")\n")
         self.makeFile.write("\n")
 
     # Currently no checks are carried otu for header only libs so there may be superfluous find_library entries
