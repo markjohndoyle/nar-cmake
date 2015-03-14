@@ -16,10 +16,10 @@ def main():
     parser = pom.PomParser()
     parser.parsePom(pomFile, sys.argv[2])
 
-    print("dep list ----------")
+    log.info("dep list ----------")
     for dep in parser.dependencies:
-        print("#### " + str(dep))
-    print("---------------")
+        log.info(str(dep))
+    log.info("---------------")
 
     log.info("Building cmake file...")
     cmakebuilder = cmake.CmakeBuilder(parser, os.path.dirname(pomFile))
