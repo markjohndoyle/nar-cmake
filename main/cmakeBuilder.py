@@ -125,17 +125,23 @@ class CmakeBuilder:
         self.makeFile.write("message(\"Finding libraries\")\n")
         for dep in self.dependencies.values():
             if dep.scope is not "compile":
-                self.log.warn("Only supporting compile scope. " +dep.getFullNarName() + " is " + dep.scope)
+                self.log.warn("Only supporting compile scope. " + dep.getFullNarName() + " is " + dep.scope)
                 continue
 
             if not dep.foundLocal:
                 # Find in target/nar
                 libPath = os.path.join(self.libPath, dep.getFullNarName("gpp"), "lib", dep.getAol("gpp"), dep.libType)
+                if not os.path.exists(libPath):
+                    self.log.warn(
+                        "Could not find external library " + dep.getFullNarName() + ". You need to use maven to pull down the dependencies or this is a header only lib.")
+                    continue
             else:
+                # This is an internal module so we need to build it if it doesn't exist...how?
                 libPath = os.path.join(dep.path, self.cmakeTarget)
 
             libId = dep.artifactId.upper()
-            self.makeFile.write("find_library(" + libId + " " + dep.artifactId + " HINTS " + libPath.replace("\\", "/") + ")\n")
+            self.makeFile.write(
+                "find_library(" + libId + " " + dep.artifactId + " HINTS " + libPath.replace("\\", "/") + ")\n")
             self.libsTolink.append(libId)
         self.makeFile.write("\n")
 
