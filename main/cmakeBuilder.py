@@ -109,7 +109,6 @@ class CmakeBuilder:
                 if file.endswith(tuple(self.srcExts)):
                     sources.append(os.path.join(srcPath, srcDir, file))
 
-        self.makeFile.write("\n")
         self.makeFile.write("set(SOURCES \n\t" + "\n\t".join(sources).replace("\\", "/") + ")\n")
         self.makeFile.write("\n")
 
