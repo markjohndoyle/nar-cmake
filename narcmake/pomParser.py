@@ -168,7 +168,7 @@ class PomParser:
                     if transitiveDeps is not None:
                         self.gatherDependencies(transitiveDeps)
                     else:
-                        print("No transitive dependencies in " + depElem.getFullNarName("gpp"))
+                        self.log.info("No transitive dependencies in " + depElem.getFullNarName("gpp"))
 
 
     def gatherAllNarDepManagement(self, dependencyManagements):

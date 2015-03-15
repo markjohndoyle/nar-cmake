@@ -8,20 +8,21 @@ __author__ = 'Mark'
 
 
 def main():
-    logging.basicConfig(level="DEBUG")
+    logging.basicConfig(format='%(levelname)s: %(message)s', level=logging.INFO)
     log = logging.getLogger("Nar2Cmake")
+
     pomFile = sys.argv[1]
     log.info("Parsing pom " + pomFile)
 
     parser = pom.PomParser()
     parser.parsePom(pomFile, sys.argv[2])
 
-    log.info("dep list ----------")
+    log.debug("Final dependency list ----------")
     for dep in parser.dependencies:
-        log.info(str(dep))
-    log.info("---------------")
+        log.debug(str(dep))
+    log.debug("---------------")
 
-    log.info("Building cmake file...")
+    log.info("Building CMakeLists.txt file...")
     cmakebuilder = cmake.CmakeBuilder(parser, os.path.dirname(pomFile))
     cmakebuilder.build()
 

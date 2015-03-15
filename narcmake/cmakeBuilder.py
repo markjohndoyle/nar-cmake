@@ -103,8 +103,6 @@ class CmakeBuilder:
         srcPath = self.parser.buildOptions["srcPath"]
         sources = []
         for srcDir in os.listdir(os.path.join(self.projectPath, srcPath)):
-            print("@@@@ " + srcDir)
-            # self.makeFile.write("add_subdirectory(" + os.path.join(srcPath, srcDir) + ")\n")
             subSrcPath = os.path.join(self.projectPath, srcPath, srcDir)
             if not os.path.isfile(subSrcPath):
                 for file in os.listdir(subSrcPath):
