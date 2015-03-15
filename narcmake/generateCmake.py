@@ -1,8 +1,8 @@
 import sys
 import logging
 import os
-from main import pomParser as pom
-from main import cmakeBuilder as cmake
+from narcmake import pomParser as pom
+from narcmake import cmakeBuilder as cmake
 
 __author__ = 'Mark'
 

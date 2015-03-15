@@ -3,7 +3,7 @@ import os
 import logging
 from collections import namedtuple
 
-from main import mavenDependency as mvnDep
+from narcmake import mavenDependency as mvnDep
 
 
 __author__ = 'Mark'
