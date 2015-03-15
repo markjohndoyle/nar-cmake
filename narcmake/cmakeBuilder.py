@@ -75,45 +75,47 @@ class CmakeBuilder:
         self.makeFile.write("\n")
 
     def addIncludeDirs(self):
-        self.makeFile.write("message(\"Adding include directories\")\n")
-        # Add project/module include dirs
-        incPath = self.parser.buildOptions["incPath"]
-        self.makeFile.write("include_directories(" + incPath.replace("\\", "/") + ")\n")
-        # for incDir in os.listdir(incPath):
-        #   self.makeFile.write("include_directories(" + os.path.join(incPath, incDir).replace("\\", "/") + ")\n")
+        if "incPath" in self.parser.buildOptions:
+            self.makeFile.write("message(\"Adding include directories\")\n")
+            # Add project/module include dirs
+            incPath = self.parser.buildOptions["incPath"]
+            self.makeFile.write("include_directories(" + incPath.replace("\\", "/") + ")\n")
+            # for incDir in os.listdir(incPath):
+            #   self.makeFile.write("include_directories(" + os.path.join(incPath, incDir).replace("\\", "/") + ")\n")
 
-        # Add dependency includes - This may be local, that is, within the same project hierarchy (another
-        # module) or external, that is, brought in by maven to this project's/module's target area.
-        for dep in self.dependencies.values():
-            # mvnDep = dep.mvnDep
-            if dep.foundLocal:
-                headerPath = os.path.join(self.parser.localModules[dep.groupId + "." + dep.artifactId], "src",
-                                          "main", "include")
-            else:
-                headerPath = os.path.join(self.libPath, dep.artifactId + "-" + dep.version + self.headerPostfix,
-                                          "include")
-            if os.path.exists(headerPath):
-                self.makeFile.write("include_directories(" + headerPath.replace("\\", "/") + ")\n")
-            else:
-                self.log.error("header path " + headerPath + " does not exist. Currently not supporting test includes.")
+            # Add dependency includes - This may be local, that is, within the same project hierarchy (another
+            # module) or external, that is, brought in by maven to this project's/module's target area.
+            for dep in self.dependencies.values():
+                # mvnDep = dep.mvnDep
+                if dep.foundLocal:
+                    headerPath = os.path.join(self.parser.localModules[dep.groupId + "." + dep.artifactId], "src",
+                                              "main", "include")
+                else:
+                    headerPath = os.path.join(self.libPath, dep.artifactId + "-" + dep.version + self.headerPostfix,
+                                              "include")
+                if os.path.exists(headerPath):
+                    self.makeFile.write("include_directories(" + headerPath.replace("\\", "/") + ")\n")
+                else:
+                    self.log.error("header path " + headerPath + " does not exist. Currently not supporting test includes.")
         self.makeFile.write("\n")
 
     def addAllSources(self):
-        self.makeFile.write("message(\"Setting sources\")\n")
-        srcPath = self.parser.buildOptions["srcPath"]
-        sources = []
-        for srcDir in os.listdir(os.path.join(self.projectPath, srcPath)):
-            subSrcPath = os.path.join(self.projectPath, srcPath, srcDir)
-            if not os.path.isfile(subSrcPath):
-                for file in os.listdir(subSrcPath):
+        if "srcPath" in self.parser.buildOptions:
+            self.makeFile.write("message(\"Setting sources\")\n")
+            srcPath = self.parser.buildOptions["srcPath"]
+            sources = []
+            for srcDir in os.listdir(os.path.join(self.projectPath, srcPath)):
+                subSrcPath = os.path.join(self.projectPath, srcPath, srcDir)
+                if not os.path.isfile(subSrcPath):
+                    for file in os.listdir(subSrcPath):
+                        if file.endswith(tuple(self.srcExts)):
+                            sources.append(os.path.join(srcPath, srcDir, file))
+                else:
+                    file = subSrcPath
                     if file.endswith(tuple(self.srcExts)):
                         sources.append(os.path.join(srcPath, srcDir, file))
-            else:
-                file = subSrcPath
-                if file.endswith(tuple(self.srcExts)):
-                     sources.append(os.path.join(srcPath, srcDir, file))
 
-        self.makeFile.write("set(SOURCES \n\t" + "\n\t".join(sources).replace("\\", "/") + ")\n")
+            self.makeFile.write("set(SOURCES \n\t" + "\n\t".join(sources).replace("\\", "/") + ")\n")
         self.makeFile.write("\n")
 
     def linkDirectories(self):
@@ -126,35 +128,37 @@ class CmakeBuilder:
 
     # Currently no checks are carried otu for header only libs so there may be superfluous find_library entries
     def addLinkLibraries(self):
-        self.makeFile.write("message(\"Finding libraries\")\n")
-        for dep in self.dependencies.values():
-            if dep.scope is not "compile":
-                self.log.warn("Only supporting compile scope. " + dep.getFullNarName() + " is " + dep.scope)
-                continue
-
-            if not dep.foundLocal:
-                # Find in target/nar
-                libPath = os.path.join(self.libPath, dep.getFullNarName("gpp"), "lib", dep.getAol("gpp"), dep.libType)
-                if not os.path.exists(libPath):
-                    self.log.warn(
-                        "Could not find external library " + dep.getFullNarName() + ". You need to use maven to pull down the dependencies or this is a header only lib.")
+        if len(self.dependencies) > 0:
+            self.makeFile.write("message(\"Finding libraries\")\n")
+            for dep in self.dependencies.values():
+                if dep.scope is not "compile":
+                    self.log.warn("Only supporting compile scope. " + dep.getFullNarName() + " is " + dep.scope)
                     continue
-            else:
-                # This is an internal module so we need to build it if it doesn't exist...how?
-                libPath = os.path.join(dep.path, self.cmakeTarget)
 
-            libId = dep.artifactId.upper()
-            self.makeFile.write(
-                "find_library(" + libId + " " + dep.artifactId + " HINTS " + libPath.replace("\\", "/") + ")\n")
-            self.libsTolink.append(libId)
+                if not dep.foundLocal:
+                    # Find in target/nar
+                    libPath = os.path.join(self.libPath, dep.getFullNarName("gpp"), "lib", dep.getAol("gpp"), dep.libType)
+                    if not os.path.exists(libPath):
+                        self.log.warn(
+                            "Could not find external library " + dep.getFullNarName() + ". You need to use maven to pull down the dependencies or this is a header only lib.")
+                        continue
+                else:
+                    # This is an internal module so we need to build it if it doesn't exist...how?
+                    libPath = os.path.join(dep.path, self.cmakeTarget)
+
+                libId = dep.artifactId.upper()
+                self.makeFile.write(
+                    "find_library(" + libId + " " + dep.artifactId + " HINTS " + libPath.replace("\\", "/") + ")\n")
+                self.libsTolink.append(libId)
         self.makeFile.write("\n")
 
 
     def linkLibraries(self):
-        self.makeFile.write("message(\"Creating library linkage\")\n")
-        for libToLink in self.libsTolink:
-            self.makeFile.write("target_link_libraries(" + self.binaryName + " ${" + libToLink + "})")
-            self.makeFile.write("\n")
+        if len(self.libsTolink) > 0:
+            self.makeFile.write("message(\"Creating library linkage\")\n")
+            for libToLink in self.libsTolink:
+                self.makeFile.write("target_link_libraries(" + self.binaryName + " ${" + libToLink + "})")
+                self.makeFile.write("\n")
 
 
 
